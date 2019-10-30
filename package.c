@@ -11,19 +11,45 @@
 #include <string.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <mqueue.h>
+#include <sys/ipc.h> 
+#include <sys/msg.h>
+#include <unistd.h>
 
-/*pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock1;
 
-typedef struct RoWCol{
-	int row;
-	int col;
-} RowCol;
-*/
+
+typedef struct QueueMessage{
+ long type;
+ int jobid;
+ int rowvec;
+ int colvec;
+int innerDim;
+ int data[100];
+} Msg;
+
+typedef struct PreQueueMessage{
+ long typeP;
+ int jobidP;
+ int rowvecP;
+ int colvecP;
+int innerDimP;
+ int dataP[100];
+ int mqidP;
+} PreMsg;
+
+void* ProducerSend(void*);
 int GetSecs(char*);
 void InitTest(int**, int**, FILE*, int, int, int, int, int);
 
+
+int NumJobsSent = 0;
+int NumJobsRec = 0;
+
+
 int main(int argc, char *argv[])
 {
+	
 	if(argc != 5)
 	{
 		printf("\nERROR: 5 arguments expected\n");
@@ -50,8 +76,7 @@ int main(int argc, char *argv[])
                 printf("Exiting program\n");
                 return 0;
         }
-
-
+	
 	int m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum;
 	int secs = GetSecs(argv[4]);
 
@@ -78,20 +103,65 @@ int main(int argc, char *argv[])
 	
 	fclose(matrixFile1);
 	fclose(matrixFile2);
+	
+	//InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
+	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
+	key_t key;
+	int msgid;
 
-	InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
-	/*
-	pthread_t threads[m1RowsNum];
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-	for(i=0; i<NUMTHRDS; i++)
-   		pthread_create(&threads[i], &attr, dotprod, (void *)i);
-	*/
+	key = ftok("ttobrien", 1);
+	msgid = msgget(key, IPC_CREAT | IPC_EXCL);
+	if(msgid == -1)
+		msgid = msgget(key, 0);
+
+	PreMsg* outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
+	
+	pthread_t threads[NumThreads];
+	for(int i = 0; i < NumThreads; i++)
+	{
+		outgoing[i].typeP = 1;
+		outgoing[i].jobidP = i;
+		outgoing[i].rowvecP = i/m1RowsNum;
+		outgoing[i].colvecP = i%m2ColsNum;
+		outgoing[i].innerDimP = m1ColsNum;
+		 
+		for(int a = 0; a < m1ColsNum; a++)
+		{
+			outgoing[i].dataP[a] = matrix1[i/m1RowsNum][a];
+			outgoing[i].dataP[m1ColsNum + a] = matrix2[a][i%m2ColsNum];
+		}
+
+		outgoing[i].mqidP = msgid;
+   		pthread_create(&threads[i], NULL, ProducerSend, &outgoing[i]);
+		sleep(secs);
+	}
 	
 	fclose(outputFile);
 	return 0;
 }
+
+void* ProducerSend(void* infoVoid)
+{
+	PreMsg* info = (PreMsg*)infoVoid;
+	Msg* message = (Msg*) malloc(sizeof(Msg));
+	message->type = info->typeP;
+	message->jobid = info->jobidP;
+	message->rowvec = info->rowvecP;
+	message->colvec = info->colvecP;
+	message->innerDim = info->innerDimP;
+	for(int a = 0; a < message->innerDim * 2; a++)
+        {
+        	message->data[a] = info->dataP[a];
+        }
+
+	int msgid = info->mqidP;
+	pthread_mutex_lock(&lock1);
+	int rc = msgsnd(msgid, &message, sizeof(message), 0); 
+	NumJobsSent++;
+	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message->jobid, message->type, sizeof(message), rc);
+	pthread_mutex_unlock(&lock1);
+}
+
 
 void InitTest(int** m1, int** m2, FILE* output, int rows1, int cols1, int rows2, int cols2, int secs)
 {

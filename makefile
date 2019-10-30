@@ -1,2 +1,2 @@
 all:
-	gcc -Wall -std=c11 package.c -o package
+	gcc -Wall -std=c99 package.c -o package -lpthread
