@@ -5,6 +5,8 @@ void* DotProduct(void*);
 
 int main(int argc, char *argv[])
 {
+	assert((argc == 2) || (argc == 3));
+
 }
 
 void* DotProduct(void* param)
@@ -17,7 +19,7 @@ void* DotProduct(void* param)
 	//read in vars
 	
 	
-	printf("Recieving job id %d type %d size %d");
+	//printf("Recieving job id %d type %d size %d");
 	
 	
 	Entry* sendBack;
@@ -28,12 +30,12 @@ void* DotProduct(void* param)
 	{
 		dp = dp + nums[i] * nums[inner + i];
 	}
-	sendBack.dotProduct = dp;
+	sendBack->dotProduct = dp;
 	
-	sendBack.type = 2;
-	sendBack.jobid = id;
-	sendBack.rowvec = row;
-	sendBack.colvec = col;
+	sendBack->type = 2;
+	sendBack->jobid = id;
+	sendBack->rowvec = row;
+	sendBack->colvec = col;
 	
 	if (n == 1)
 	{

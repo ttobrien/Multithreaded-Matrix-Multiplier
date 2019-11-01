@@ -2,9 +2,7 @@
 //Start date: 10-26-2019
 
 //QUESTIONS
-//makefile with c11
-//assume proper format and all integers input
-//is secs an int
+//how to use both stderr and assert
 
 #include "header.h"
 
@@ -16,16 +14,10 @@ void InitTest(int**, int**, FILE*, int, int, int, int, int);
 int NumJobsSent = 0;
 int NumJobsRec = 0;
 
-
 int main(int argc, char *argv[])
 {
 	
-	if(argc != 5)
-	{
-		printf("\nERROR: 5 arguments expected\n");
-		printf("Exiting program\n");
-		return 0;
-	}
+	assert(argc == 5);
 
 	FILE* matrixFile1 = NULL;
 	FILE* matrixFile2 = NULL;
@@ -34,19 +26,9 @@ int main(int argc, char *argv[])
 	matrixFile2 = fopen(argv[2], "r");
 	outputFile = fopen(argv[3], "w");
 
-	if(matrixFile1 == NULL)
-    	{
-        	printf("\nERROR: %s was not found\n", argv[1]);
-		printf("Exiting program\n");
-        	return 0;
-	}
-	else if(matrixFile2 == NULL)
-        {
-                printf("\nERROR: %s was not found\n", argv[2]);
-                printf("Exiting program\n");
-                return 0;
-        }
-	
+	assert(matrixFile1 != NULL);
+	assert(matrixFile2 != NULL);
+              
 	int m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum;
 	int secs = GetSecs(argv[4]);
 
@@ -162,16 +144,12 @@ int GetSecs(char* arg5)
 {
 	int i, secs;
 	int len = strlen(arg5);
+
 	for(i = 0; i < len; i++)
-	{
-		if(! isdigit(arg5[i]))
-		{
-			printf("\nERROR: integer expected for arguement 5\n");
-                	printf("Exiting program\n");
-			exit(1);
-		}
-	}
+		assert(isdigit(arg5[i]));
+	
 	sscanf(arg5, "%d", &secs);
+
 	return secs;
 }
 
