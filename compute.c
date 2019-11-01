@@ -1,10 +1,4 @@
-typedef stuct Computed{
-	long type;
-	int jobid;
-	int rowvec;
-	int colvec;
-	int dotProduct;
-} Entry;
+#include "header.h"
 
 void* DotProduct(void*);
 
