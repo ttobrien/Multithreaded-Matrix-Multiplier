@@ -26,8 +26,10 @@ void* DotProduct(void* param)
 	printf("Recieving job id %d type %d size %d");
 	
 	
-	Entry* sendBack = (Entry*)malloc(sizeof(Entry));
+	Entry* sendBack;
+	sendBack = (Entry*)malloc(sizeof(Entry));
 	dp = 0;
+	
 	for(int i = 0; i < inner; i++)
 	{
 		dp = dp + nums[i] * nums[inner + i];

@@ -114,7 +114,8 @@ int main(int argc, char *argv[])
 	if(msgid == -1)
 		msgid = msgget(key, 0);
 
-	PreMsg* outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
+	PreMsg* outgoing;
+        outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
 	
 	pthread_t threads[NumThreads];
 	for(int i = 0; i < NumThreads; i++)
@@ -143,7 +144,8 @@ int main(int argc, char *argv[])
 void* ProducerSend(void* infoVoid)
 {
 	PreMsg* info = (PreMsg*)infoVoid;
-	Msg* message = (Msg*) malloc(sizeof(Msg));
+	Msg* message;
+        message	= (Msg*) malloc(sizeof(Msg));
 	message->type = info->typeP;
 	message->jobid = info->jobidP;
 	message->rowvec = info->rowvecP;
