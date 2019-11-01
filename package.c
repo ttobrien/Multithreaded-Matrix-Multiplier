@@ -3,6 +3,7 @@
 
 //QUESTIONS
 //how to use both stderr and assert
+//actually print "^C"?
 
 #include "header.h"
 
@@ -14,9 +15,19 @@ void InitTest(int**, int**, FILE*, int, int, int, int, int);
 int NumJobsSent = 0;
 int NumJobsRec = 0;
 
+//Source: https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
+void ctrl_c_handler(int sig_num)
+{
+        signal(SIGINT, ctrl_c_handler);
+        printf("^CJobs sent %d Jobs Recieved %d\n", NumJobsSent, NumJobsRec);
+        fflush(stdout);
+}
+
+
 int main(int argc, char *argv[])
 {
-	
+	signal(SIGINT, ctrl_c_handler);
+
 	assert(argc == 5);
 
 	FILE* matrixFile1 = NULL;

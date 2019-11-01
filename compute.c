@@ -24,7 +24,7 @@ void* DotProduct(void* param)
 	
 	Entry* sendBack;
 	sendBack = (Entry*)malloc(sizeof(Entry));
-	dp = 0;
+	int dp = 0;
 	
 	for(int i = 0; i < inner; i++)
 	{
@@ -45,6 +45,5 @@ void* DotProduct(void* param)
 	if (n == 0)
 	{
 		printf("Sending job id %d type 2 size %ld (rc=%d)", id, sizeof(sendBack), rc);
-
+	}
 }
-
