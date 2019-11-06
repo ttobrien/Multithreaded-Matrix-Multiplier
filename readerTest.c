@@ -23,9 +23,9 @@ int main()
     // and returns identifier 
     msgid = msgget(key, 0666 | IPC_CREAT); 
   
-    // msgrcv to receive message 
-    msgrcv(msgid, &message, sizeof(message), 1, 0); 
-  
+    int rc;// msgrcv to receive message 
+    rc = (int)msgrcv(msgid, &message, sizeof(message), 1, 0); 
+    printf("rc = %d", rc);
     // display the message 
     printf("Data Received is : %s \n",  
                     message.mesg_text); 

@@ -3,6 +3,7 @@
 
 //QUESTIONS
 //how to use both stderr and assert
+//use wrapper fcns like in textbook?
 //actually print "^C"?
 
 #include "header.h"
@@ -48,6 +49,8 @@ int main(int argc, char *argv[])
 	fscanf(matrixFile2, " %d", &m2RowsNum);
         fscanf(matrixFile2, " %d\n", &m2ColsNum);
 	
+	assert(m1ColsNum == m2RowsNum);
+
 	int* matrix1[m1RowsNum];
 	for(int a = 0; a < m1RowsNum; a++)
 		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));

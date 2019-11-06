@@ -26,8 +26,9 @@ int main()
     gets(message.mesg_text); 
   
     // msgsnd to send message 
-    msgsnd(msgid, &message, sizeof(message), 0); 
-  
+    int rc;
+    rc = (int)msgsnd(msgid, &message, sizeof(message), 0); 
+  printf("rc = %d", rc);
     // display the message 
     printf("Data send is : %s \n", message.mesg_text); 
   
