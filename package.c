@@ -72,13 +72,16 @@ int main(int argc, char *argv[])
 	
 	//InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
-	key_t key;
+	msgctl(163841, IPC_RMID, NULL);	
 	int msgid;
-
-	key = ftok("ttobrien", 1);
-	msgid = msgget(key, IPC_CREAT | IPC_EXCL);
+	int key = 11829579;
+	
+	msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
 	if(msgid == -1)
 		msgid = msgget(key, 0);
+
+
+	
 
 	PreMsg* outgoing;
         outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
@@ -117,16 +120,23 @@ void* ProducerSend(void* infoVoid)
 	message->rowvec = info->rowvecP;
 	message->colvec = info->colvecP;
 	message->innerDim = info->innerDimP;
+	
+	printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message->type, message->jobid, message->rowvec, message->colvec, message->innerDim);
+	
 	for(int a = 0; a < message->innerDim * 2; a++)
         {
         	message->data[a] = info->dataP[a];
-        }
-
+       
+       	}
+	
 	int msgid = info->mqidP;
+	printf("msgid: %d\n", msgid);
 	pthread_mutex_lock(&lock1);
-	int rc = msgsnd(msgid, &message, sizeof(message), 0); 
+	int rc = msgsnd(msgid, &message, (4 + 2 * message->innerDim) * sizeof(int), 0);
+       if(rc == -1)
+       printf("\nUH OH: %s\n\n", strerror(errno));	       
 	NumJobsSent++;
-	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message->jobid, message->type, sizeof(message), rc);
+	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message->jobid, message->type, (4 + 2 * message->innerDim) * sizeof(int), rc);
 	pthread_mutex_unlock(&lock1);
 }
 

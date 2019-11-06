@@ -9,7 +9,10 @@
 #include <unistd.h>
 #include <assert.h>
 #include <signal.h>
-
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
 pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsSent
 pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsRec
 
