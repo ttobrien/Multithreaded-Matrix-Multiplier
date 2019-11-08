@@ -43,3 +43,9 @@ int innerDimP;
  int mqidP;
 } PreMsg;
 
+typedef struct RE{
+	int row;
+	int col;
+	int dp;
+} ReturnEntry;
+

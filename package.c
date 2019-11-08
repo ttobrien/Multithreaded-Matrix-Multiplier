@@ -12,7 +12,6 @@ void* ProducerSend(void*);
 int GetSecs(char*);
 void InitTest(int**, int**, FILE*, int, int, int, int, int);
 
-
 int NumJobsSent = 0;
 int NumJobsRec = 0;
 
@@ -70,9 +69,11 @@ int main(int argc, char *argv[])
 	fclose(matrixFile1);
 	fclose(matrixFile2);
 	
+
+	int mOut[m1RowsNum][m2ColsNum];
 	//InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
-	msgctl(163841, IPC_RMID, NULL);	
+	msgctl(262144, IPC_RMID, NULL);	
 	int msgid;
 	int key = 11829579;
 	
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
         outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
 	
 	pthread_t threads[NumThreads];
-	for(int i = 0; i < NumThreads; i++)
+	for(int i = 0; i < 1; i++) //NumThreads; i++)
 	{
 		outgoing[i].typeP = 1;
 		outgoing[i].jobidP = i;
@@ -106,6 +107,16 @@ int main(int argc, char *argv[])
 		sleep(secs);
 	}
 	
+	ReturnEntry* e;
+	void* ptr;
+	pthread_join(threads[0], ptr);
+	e = (ReturnEntry*)ptr;
+	printf("\nSum for %d,%d = %d", e->row, e->col, e->dp);
+	mOut[e->row][e->col] = e->dp;
+	fprintf(outputFile, "%d", mOut[e->row][e->col]);	
+
+
+
 	fclose(outputFile);
 	return 0;
 }
@@ -113,31 +124,46 @@ int main(int argc, char *argv[])
 void* ProducerSend(void* infoVoid)
 {
 	PreMsg* info = (PreMsg*)infoVoid;
-	Msg* message;
-        message	= (Msg*) malloc(sizeof(Msg));
-	message->type = info->typeP;
-	message->jobid = info->jobidP;
-	message->rowvec = info->rowvecP;
-	message->colvec = info->colvecP;
-	message->innerDim = info->innerDimP;
+	Msg message;
+	message.type = info->typeP;
+	message.jobid = info->jobidP;
+	message.rowvec = info->rowvecP;
+	message.colvec = info->colvecP;
+	message.innerDim = info->innerDimP;
 	
-	printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message->type, message->jobid, message->rowvec, message->colvec, message->innerDim);
+	printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message.type, message.jobid, message.rowvec, message.colvec, message.innerDim);
 	
-	for(int a = 0; a < message->innerDim * 2; a++)
+	for(int a = 0; a < message.innerDim * 2; a++)
         {
-        	message->data[a] = info->dataP[a];
+        	message.data[a] = info->dataP[a];
        
        	}
 	
 	int msgid = info->mqidP;
 	printf("msgid: %d\n", msgid);
 	pthread_mutex_lock(&lock1);
-	int rc = msgsnd(msgid, &message, (4 + 2 * message->innerDim) * sizeof(int), 0);
-       if(rc == -1)
-       printf("\nUH OH: %s\n\n", strerror(errno));	       
+	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
+      // if(rc == -1)
+      // printf("\nUH OH: %s\n\n", strerror(errno));	       
 	NumJobsSent++;
-	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message->jobid, message->type, (4 + 2 * message->innerDim) * sizeof(int), rc);
+	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int), rc1);
 	pthread_mutex_unlock(&lock1);
+
+	Entry entry;
+	pthread_mutex_lock(&lock2);
+	int rc2 = msgrcv(msgid, &entry, 4 * sizeof(int) + sizeof(long), 2, 0);
+        assert(rc2 >= 0);
+	printf("Recieving job id %d type %ld size %ld (rc=%d)", entry.jobid, entry.type, 4 * sizeof(int) + sizeof(long), rc2);
+	NumJobsRec++;
+	pthread_mutex_unlock(&lock2);
+
+	ReturnEntry* returnEntry;
+	returnEntry = (ReturnEntry*) malloc(sizeof(ReturnEntry));
+	returnEntry->row = entry.rowvec;
+	returnEntry->col = entry.colvec;
+	returnEntry->dp = entry.dotProduct;
+	
+	return returnEntry;
 }
 
 
