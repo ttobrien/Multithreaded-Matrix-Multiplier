@@ -88,7 +88,9 @@ int main(int argc, char *argv[])
         outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
 	
 	pthread_t threads[NumThreads];
-	for(int i = 0; i < 1; i++) //NumThreads; i++)
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	for(int i = 0; i < NumThreads; i++)
 	{
 		outgoing[i].typeP = 1;
 		outgoing[i].jobidP = i;
@@ -103,21 +105,31 @@ int main(int argc, char *argv[])
 		}
 
 		outgoing[i].mqidP = msgid;
-   		pthread_create(&threads[i], NULL, ProducerSend, &outgoing[i]);
+   		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
 		sleep(secs);
 	}
-	
+	int rcJoin;
 	ReturnEntry* e;
 	void* ptr;
-	pthread_join(threads[0], ptr);
-	e = (ReturnEntry*)ptr;
-	printf("\nSum for %d,%d = %d", e->row, e->col, e->dp);
-	mOut[e->row][e->col] = e->dp;
-	fprintf(outputFile, "%d", mOut[e->row][e->col]);	
 
-
-
+	for(int j = 0; j < NumThreads; j++)
+	{
+		rcJoin = pthread_join(threads[j], &ptr);
+		assert(rcJoin == 0);
+		e = (ReturnEntry*)ptr;
+		mOut[e->row][e->col] = e->dp;
+	}
+	
+	
+	for(int a = 0; a < m1RowsNum; a++)
+	{
+		for(int b = 0; b < m2ColsNum; b++)
+		{
+			fprintf(outputFile, "%d", mOut[a][b]);	
+		}
+	}
 	fclose(outputFile);
+
 	return 0;
 }
 
@@ -131,7 +143,7 @@ void* ProducerSend(void* infoVoid)
 	message.colvec = info->colvecP;
 	message.innerDim = info->innerDimP;
 	
-	printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message.type, message.jobid, message.rowvec, message.colvec, message.innerDim);
+	//printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message.type, message.jobid, message.rowvec, message.colvec, message.innerDim);
 	
 	for(int a = 0; a < message.innerDim * 2; a++)
         {
@@ -140,7 +152,7 @@ void* ProducerSend(void* infoVoid)
        	}
 	
 	int msgid = info->mqidP;
-	printf("msgid: %d\n", msgid);
+	//printf("msgid: %d\n", msgid);
 	pthread_mutex_lock(&lock1);
 	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
       // if(rc == -1)
@@ -153,7 +165,7 @@ void* ProducerSend(void* infoVoid)
 	pthread_mutex_lock(&lock2);
 	int rc2 = msgrcv(msgid, &entry, 4 * sizeof(int) + sizeof(long), 2, 0);
         assert(rc2 >= 0);
-	printf("Recieving job id %d type %ld size %ld (rc=%d)", entry.jobid, entry.type, 4 * sizeof(int) + sizeof(long), rc2);
+	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int) + sizeof(long));
 	NumJobsRec++;
 	pthread_mutex_unlock(&lock2);
 
@@ -162,7 +174,7 @@ void* ProducerSend(void* infoVoid)
 	returnEntry->row = entry.rowvec;
 	returnEntry->col = entry.colvec;
 	returnEntry->dp = entry.dotProduct;
-	
+//	printf("dp: %d\n", returnEntry->dp);
 	return returnEntry;
 }
 

@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 void* DotProduct(void* param)
 {
 	int id = 0, row = 0, col = 0, inner = 0;
-	int  n = 0;
+	int  n = 1;
 	int rc1 = 0, rc2 = 0;
 	int msgid = *((int*)param);
 
