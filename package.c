@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 	assert(matrixFile1 != NULL);
 	assert(matrixFile2 != NULL);
               
-	int m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum;
+	int m1RowsNum = 0, m1ColsNum = 0, m2RowsNum = 0, m2ColsNum = 0;
 	int secs = GetSecs(argv[4]);
 
 	fscanf(matrixFile1, " %d", &m1RowsNum);
@@ -48,15 +48,15 @@ int main(int argc, char *argv[])
 	fscanf(matrixFile2, " %d", &m2RowsNum);
         fscanf(matrixFile2, " %d\n", &m2ColsNum);
 	
-	assert(m1ColsNum == m2RowsNum);
+//	assert(m1ColsNum == m2RowsNum);
 
-	int* matrix1[m1RowsNum];
-	for(int a = 0; a < m1RowsNum; a++)
-		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));
+	int matrix1[m1RowsNum][m2ColsNum];
+//	for(int a = 0; a < m1RowsNum; a++)
+//		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));
 
-	int* matrix2[m2RowsNum];
-        for(int a = 0; a < m2RowsNum; a++)
-                matrix2[a] = (int*) malloc(m2ColsNum * sizeof(int));
+	int matrix2[m2RowsNum][m2ColsNum];
+  //      for(int a = 0; a < m2RowsNum; a++)
+    //            matrix2[a] = (int*) malloc(m2ColsNum * sizeof(int));
 	
 	for(int i = 0; i < m1RowsNum; i++)
 		for(int j = 0; j < m1ColsNum; j++)
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	int mOut[m1RowsNum][m2ColsNum];
 	//InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
-	msgctl(262144, IPC_RMID, NULL);	
+	msgctl(360448, IPC_RMID, NULL);	
 	int msgid;
 	int key = 11829579;
 	
@@ -84,30 +84,43 @@ int main(int argc, char *argv[])
 
 	
 
-	PreMsg* outgoing;
-        outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));
-	
+/*	PreMsg** outgoing = (PreMsg**)malloc(NumThreads* sizeof(PreMsg*)); //stackoverflow how to implement a 2-dimensional array of struct in C
+	for(int h = 0; h <NumThreads; h++)
+        	outgoing[h] = (PreMsg*) malloc(sizeof(PreMsg));
+*/
+	PreMsg* outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));//stack over flow 10468128 how do you make an array of structs in C?
+/*	for(int x = 0; x < NumThreads; x++)
+	{
+		outgoing[x].dataP* = (int*) malloc(100 * sizeof(int));
+	}
+*/		
 	pthread_t threads[NumThreads];
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	for(int i = 0; i < NumThreads; i++)
 	{
+		//outgoing[i].dataP = (int *) malloc(sizeof(int) * 100);
 		outgoing[i].typeP = 1;
 		outgoing[i].jobidP = i;
-		outgoing[i].rowvecP = i/m1RowsNum;
+		outgoing[i].rowvecP = i/m2ColsNum;
+	//	printf("row: %d\n", outgoing[i].rowvecP);
 		outgoing[i].colvecP = i%m2ColsNum;
 		outgoing[i].innerDimP = m1ColsNum;
 		 
 		for(int a = 0; a < m1ColsNum; a++)
 		{
-			outgoing[i].dataP[a] = matrix1[i/m1RowsNum][a];
+			outgoing[i].dataP[a] = matrix1[i/m2ColsNum][a];
 			outgoing[i].dataP[m1ColsNum + a] = matrix2[a][i%m2ColsNum];
 		}
+		for (int b = 2*m1ColsNum; b < 100; b++)
+			outgoing[i].dataP[b] = 0;
 
 		outgoing[i].mqidP = msgid;
    		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
 		sleep(secs);
 	}
+	free(outgoing);
+
 	int rcJoin;
 	ReturnEntry* e;
 	void* ptr;
@@ -118,14 +131,15 @@ int main(int argc, char *argv[])
 		assert(rcJoin == 0);
 		e = (ReturnEntry*)ptr;
 		mOut[e->row][e->col] = e->dp;
+		free(e);
 	}
 	
-	
+
 	for(int a = 0; a < m1RowsNum; a++)
 	{
 		for(int b = 0; b < m2ColsNum; b++)
 		{
-			fprintf(outputFile, "%d", mOut[a][b]);	
+			fprintf(outputFile, "%d ", mOut[a][b]);	
 		}
 	}
 	fclose(outputFile);
@@ -136,6 +150,7 @@ int main(int argc, char *argv[])
 void* ProducerSend(void* infoVoid)
 {
 	PreMsg* info = (PreMsg*)infoVoid;
+	//printf("type: %ld", info->typeP);
 	Msg message;
 	message.type = info->typeP;
 	message.jobid = info->jobidP;
@@ -160,6 +175,8 @@ void* ProducerSend(void* infoVoid)
 	NumJobsSent++;
 	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int), rc1);
 	pthread_mutex_unlock(&lock1);
+	//free(infoVoid);
+
 
 	Entry entry;
 	pthread_mutex_lock(&lock2);
