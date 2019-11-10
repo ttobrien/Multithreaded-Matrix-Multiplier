@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
 	msgctl(360448, IPC_RMID, NULL);	
 	int msgid;
-	int key = 11829579;
+	key_t key = ftok("ttobrien", 11);
 	
 	msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
 	if(msgid == -1)
@@ -134,7 +134,6 @@ int main(int argc, char *argv[])
 		free(e);
 	}
 	
-
 	for(int a = 0; a < m1RowsNum; a++)
 	{
 		for(int b = 0; b < m2ColsNum; b++)

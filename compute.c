@@ -6,21 +6,25 @@ void* DotProduct(void*);
 int main(int argc, char *argv[])
 {
 	assert((argc == 2) || (argc == 3));
-
+	
+	ComArgs* comInfo = (ComArgs*) malloc(sizeof(ComArgs));
 	int msgid;
-        int key = 11829579;
+        
+	key_t key = ftok("ttobrien", 11);
 
         msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
         if(msgid == -1)
                 msgid = msgget(key, 0);
+	comInfo->mqID = msgid;
+	
 
+	if(argc == 3)
+		comInfo->nFlag = 1;
+	else
+		comInfo->nFlag = 0;	
 	
-/*	Msg message;
-	//message = (Msg*) malloc(sizeof(Msg));
-        msgrcv(msgid, &message, 416, 1, 0);
-	printf("%d\n", message.jobid);
-*/	
-	
+//	int threadPoolSize = (int) argv[1];
+
 	pthread_t thread;
 	pthread_create(&thread, NULL, DotProduct, &msgid);
 	pthread_join(thread, NULL);
@@ -29,7 +33,7 @@ int main(int argc, char *argv[])
 	
 	
 	
-	
+	free(comInfo);
 	
 	return 0;
 }

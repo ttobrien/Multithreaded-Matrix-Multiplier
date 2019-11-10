@@ -15,6 +15,7 @@
 #include <errno.h>
 pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsSent
 pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsRec
+int ALLDONE = 0;
 
 typedef struct Computed{
         long type;
@@ -49,3 +50,8 @@ typedef struct RE{
 	int dp;
 } ReturnEntry;
 
+typedef struct ComputeInfo
+{
+	int mqID;
+	int nFlag;
+} ComArgs;
