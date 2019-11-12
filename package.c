@@ -1,11 +1,6 @@
 //Author: Tommy O'Brien
 //Start date: 10-26-2019
 
-//QUESTIONS
-//how to use both stderr and assert
-//use wrapper fcns like in textbook?
-//actually print "^C"?
-
 #include "header.h"
 
 void* ProducerSend(void*);
@@ -48,15 +43,21 @@ int main(int argc, char *argv[])
 	fscanf(matrixFile2, " %d", &m2RowsNum);
         fscanf(matrixFile2, " %d\n", &m2ColsNum);
 	
-//	assert(m1ColsNum == m2RowsNum);
+	assert(m1ColsNum == m2RowsNum);
+	assert((m1RowsNum >= 1) && (m1RowsNum <= 50));
+	assert((m2RowsNum >= 1) && (m2RowsNum <= 50));
+	assert((m1ColsNum >= 1) && (m1ColsNum <= 50));
+	assert((m2ColsNum >= 1) && (m2ColsNum <= 50));
 
-	int matrix1[m1RowsNum][m2ColsNum];
-//	for(int a = 0; a < m1RowsNum; a++)
-//		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));
+	//stackoverflow 2128728 allocate matrix in C
+	
+	int** matrix1 = (int **) malloc(m1RowsNum * sizeof(int*));
+	for(int a = 0; a < m1RowsNum; a++)
+		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));
 
-	int matrix2[m2RowsNum][m2ColsNum];
-  //      for(int a = 0; a < m2RowsNum; a++)
-    //            matrix2[a] = (int*) malloc(m2ColsNum * sizeof(int));
+	int** matrix2 = (int **) malloc(m1RowsNum * sizeof(int*));
+        for(int a = 0; a < m2RowsNum; a++)
+                matrix2[a] = (int*) malloc(m2ColsNum * sizeof(int));
 	
 	for(int i = 0; i < m1RowsNum; i++)
 		for(int j = 0; j < m1ColsNum; j++)
@@ -70,10 +71,12 @@ int main(int argc, char *argv[])
 	fclose(matrixFile2);
 	
 
-	int mOut[m1RowsNum][m2ColsNum];
+	int** mOut = (int **) malloc(m1RowsNum * sizeof(int*));
+        for(int a = 0; a < m1RowsNum; a++)
+                mOut[a] = (int*) malloc(m2ColsNum * sizeof(int));
 	//InitTest(matrix1, matrix2, outputFile, m1RowsNum, m1ColsNum, m2RowsNum, m2ColsNum, secs);
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
-	msgctl(360448, IPC_RMID, NULL);	
+	msgctl(491520, IPC_RMID, NULL);	
 	int msgid;
 	key_t key = ftok("ttobrien", 11);
 	
@@ -81,7 +84,7 @@ int main(int argc, char *argv[])
 	if(msgid == -1)
 		msgid = msgget(key, 0);
 
-
+	
 	
 
 /*	PreMsg** outgoing = (PreMsg**)malloc(NumThreads* sizeof(PreMsg*)); //stackoverflow how to implement a 2-dimensional array of struct in C
@@ -100,27 +103,41 @@ int main(int argc, char *argv[])
 	for(int i = 0; i < NumThreads; i++)
 	{
 		//outgoing[i].dataP = (int *) malloc(sizeof(int) * 100);
-		outgoing[i].typeP = 1;
-		outgoing[i].jobidP = i;
-		outgoing[i].rowvecP = i/m2ColsNum;
+//		outgoing[i].typeP = 1;
+//		outgoing[i].jobidP = i;
+//		outgoing[i].rowvecP = i/m2ColsNum;
 	//	printf("row: %d\n", outgoing[i].rowvecP);
-		outgoing[i].colvecP = i%m2ColsNum;
-		outgoing[i].innerDimP = m1ColsNum;
+//		outgoing[i].colvecP = i%m2ColsNum;
+//		outgoing[i].innerDimP = m1ColsNum;
 		 
-		for(int a = 0; a < m1ColsNum; a++)
-		{
-			outgoing[i].dataP[a] = matrix1[i/m2ColsNum][a];
-			outgoing[i].dataP[m1ColsNum + a] = matrix2[a][i%m2ColsNum];
-		}
-		for (int b = 2*m1ColsNum; b < 100; b++)
-			outgoing[i].dataP[b] = 0;
+//		for(int a = 0; a < m1ColsNum; a++)
+//		{
+//			outgoing[i].dataP[a] = matrix1[i/m2ColsNum][a];
+//			outgoing[i].dataP[m1ColsNum + a] = matrix2[a][i%m2ColsNum];
+//		}
+//		for (int b = 2*m1ColsNum; b < 100; b++)
+//			outgoing[i].dataP[b] = 0;
 
-		outgoing[i].mqidP = msgid;
-   		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
+//		outgoing[i].mqidP = msgid;
+   		outgoing[i].jobidP = i;
+		outgoing[i].mqidP = &msgid;
+		outgoing[i].m2C = &m2ColsNum;
+		outgoing[i].m1C = &m1ColsNum;
+		outgoing[i].m1 = matrix1;
+		outgoing[i].m2 = matrix2;
+		
+		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
 		sleep(secs);
 	}
 	free(outgoing);
-
+	for(int a = 0; a < m1RowsNum; a++)
+		free(matrix1[a]);
+	free(matrix1);
+	for(int a = 0; a < m2RowsNum; a++)
+		free(matrix2[a]);
+	free(matrix2);
+	//SHOULD FREE THIS AFTER ALL SENT BUT BEFORE ALL RECIEVED
+	
 	int rcJoin;
 	ReturnEntry* e;
 	void* ptr;
@@ -133,14 +150,20 @@ int main(int argc, char *argv[])
 		mOut[e->row][e->col] = e->dp;
 		free(e);
 	}
-	
+	printf("\n\nResulting Matrix:\n\n");
 	for(int a = 0; a < m1RowsNum; a++)
 	{
 		for(int b = 0; b < m2ColsNum; b++)
 		{
+			printf("%4d ", mOut[a][b]);
 			fprintf(outputFile, "%d ", mOut[a][b]);	
 		}
+		printf("\n");
 	}
+	for(int a = 0; a < m1RowsNum; a++)
+		free(mOut[a]);
+	free(mOut);
+	printf("\n\n\n");
 	fclose(outputFile);
 
 	return 0;
@@ -149,23 +172,24 @@ int main(int argc, char *argv[])
 void* ProducerSend(void* infoVoid)
 {
 	PreMsg* info = (PreMsg*)infoVoid;
-	//printf("type: %ld", info->typeP);
+	
+	int msgid = *(info->mqidP);
+	
 	Msg message;
-	message.type = info->typeP;
+	message.type = 1;
 	message.jobid = info->jobidP;
-	message.rowvec = info->rowvecP;
-	message.colvec = info->colvecP;
-	message.innerDim = info->innerDimP;
+	message.rowvec = info->jobidP / *(info->m2C);
+	message.colvec = info->jobidP % *(info->m2C);
+	message.innerDim = *(info->m1C);
 	
 	//printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message.type, message.jobid, message.rowvec, message.colvec, message.innerDim);
 	
-	for(int a = 0; a < message.innerDim * 2; a++)
+	for(int a = 0; a < message.innerDim; a++)
         {
-        	message.data[a] = info->dataP[a];
-       
+        	message.data[a] = info->m1[info->jobidP / *(info->m2C)][a];
+		message.data[a + message.innerDim] = info->m2[a][info->jobidP % *(info->m2C)];
        	}
 	
-	int msgid = info->mqidP;
 	//printf("msgid: %d\n", msgid);
 	pthread_mutex_lock(&lock1);
 	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
@@ -179,9 +203,9 @@ void* ProducerSend(void* infoVoid)
 
 	Entry entry;
 	pthread_mutex_lock(&lock2);
-	int rc2 = msgrcv(msgid, &entry, 4 * sizeof(int) + sizeof(long), 2, 0);
+	int rc2 = msgrcv(msgid, &entry, 4 * sizeof(int), 2, 0);
         assert(rc2 >= 0);
-	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int) + sizeof(long));
+	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int));
 	NumJobsRec++;
 	pthread_mutex_unlock(&lock2);
 

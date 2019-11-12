@@ -13,8 +13,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
-pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsSent
-pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER; //for global variable int numJobsRec
+pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsSent in package.c
+pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsRec in package.c
+pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsSent in compute.c
+pthread_mutex_t lock4 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsRec in compute.c
+
 int ALLDONE = 0;
 
 typedef struct Computed{
@@ -34,7 +37,7 @@ int innerDim;
  int data[100];
 } Msg;
 
-typedef struct PreQueueMessage{
+/*typedef struct PreQueueMessage{
  long typeP;
  int jobidP;
  int rowvecP;
@@ -42,6 +45,15 @@ typedef struct PreQueueMessage{
 int innerDimP;
  int dataP[100];
  int mqidP;
+} PreMsg;*/
+
+typedef struct PackageInfoForThread{
+	int jobidP;
+	int* mqidP;
+	int* m2C;
+	int* m1C;
+	int** m1;
+	int** m2;
 } PreMsg;
 
 typedef struct RE{
@@ -52,6 +64,9 @@ typedef struct RE{
 
 typedef struct ComputeInfo
 {
-	int mqID;
-	int nFlag;
+	int tid;
+	int* mqID;
+	int* nFlag;
 } ComArgs;
+
+
