@@ -20,7 +20,7 @@ void worker(void *arg)
     printf("tid=%p, old=%d, val=%d\n", pthread_self(), old, *val);
 
     if (*val%2)
-        sleep(1);
+        usleep(100000);
 }
 
 int main(int argc, char **argv)
@@ -47,7 +47,6 @@ int main(int argc, char **argv)
     tpool_destroy(tm);
     return 0;
 }
-
 
 
 

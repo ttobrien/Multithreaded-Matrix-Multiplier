@@ -66,7 +66,6 @@ typedef struct RE{
 
 typedef struct ComputeInfo
 {
-	int tid;
 	int* mqID;
 	int* nFlag;
 } ComArgs;
