@@ -18,6 +18,12 @@ void ctrl_c_handler(int sig_num)
         fflush(stdout);
 }
 
+void goodbye()
+{
+        fprintf(stderr, "Program terminating\n");
+        exit(0);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -125,7 +131,7 @@ int main(int argc, char *argv[])
 		outgoing[i].m1C = &m1ColsNum;
 		outgoing[i].m1 = matrix1;
 		outgoing[i].m2 = matrix2;
-		
+		outgoing[i].m3 = mOut;
 		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
 		sleep(secs);
 	}
@@ -139,17 +145,28 @@ int main(int argc, char *argv[])
 	//SHOULD FREE THIS AFTER ALL SENT BUT BEFORE ALL RECIEVED
 	
 	int rcJoin;
-	ReturnEntry* e;
-	void* ptr;
+	//ReturnEntry* e;
+	//void* ptr;
 
-	for(int j = 0; j < NumThreads; j++)
+	/*for(int j = 0; j < NumThreads; j++)
 	{
 		rcJoin = pthread_join(threads[j], &ptr);
 		assert(rcJoin == 0);
 		e = (ReturnEntry*)ptr;
 		mOut[e->row][e->col] = e->dp;
 		free(e);
+	}*/
+
+	for(int j = 0; j < NumThreads; j++)
+	{
+		rcJoin = pthread_join(threads[j], NULL);
+		if(rcJoin < 0)
+		{
+			printf("ERROR: Thread %d not joined correctly\n", j);
+			goodbye();
+		}
 	}
+
 	printf("\n\nResulting Matrix:\n\n");
 	for(int a = 0; a < m1RowsNum; a++)
 	{
@@ -217,13 +234,15 @@ void* ProducerSend(void* infoVoid)
 	NumJobsRec++;
 	pthread_mutex_unlock(&lock2);
 
-	ReturnEntry* returnEntry;
+	info->m3[entry.rowvec][entry.colvec] = entry.dotProduct;
+	return NULL;
+	/*ReturnEntry* returnEntry;
 	returnEntry = (ReturnEntry*) malloc(sizeof(ReturnEntry));
 	returnEntry->row = entry.rowvec;
 	returnEntry->col = entry.colvec;
 	returnEntry->dp = entry.dotProduct;
 //	printf("dp: %d\n", returnEntry->dp);
-	return returnEntry;
+	return returnEntry;*/
 }
 
 

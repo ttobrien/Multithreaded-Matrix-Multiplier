@@ -55,6 +55,7 @@ typedef struct PackageInfoForThread{
 	int* m1C;
 	int** m1;
 	int** m2;
+	int** m3;
 } PreMsg;
 
 typedef struct RE{
