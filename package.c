@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	for(int a = 0; a < m1RowsNum; a++)
 		matrix1[a] = (int*) malloc(m1ColsNum * sizeof(int));
 
-	int** matrix2 = (int **) malloc(m1RowsNum * sizeof(int*));
+	int** matrix2 = (int **) malloc(m2RowsNum * sizeof(int*));
         for(int a = 0; a < m2RowsNum; a++)
                 matrix2[a] = (int*) malloc(m2ColsNum * sizeof(int));
 	
@@ -129,13 +129,13 @@ int main(int argc, char *argv[])
 		pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
 		sleep(secs);
 	}
-	free(outgoing);
+	/*free(outgoing);
 	for(int a = 0; a < m1RowsNum; a++)
 		free(matrix1[a]);
 	free(matrix1);
 	for(int a = 0; a < m2RowsNum; a++)
 		free(matrix2[a]);
-	free(matrix2);
+	free(matrix2);*/
 	//SHOULD FREE THIS AFTER ALL SENT BUT BEFORE ALL RECIEVED
 	
 	int rcJoin;
@@ -165,6 +165,14 @@ int main(int argc, char *argv[])
 	free(mOut);
 	printf("\n\n\n");
 	fclose(outputFile);
+	
+	free(outgoing);
+        for(int a = 0; a < m1RowsNum; a++)
+                free(matrix1[a]);
+        free(matrix1);
+        for(int a = 0; a < m2RowsNum; a++)
+                free(matrix2[a]);
+        free(matrix2);
 
 	return 0;
 }
