@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <mqueue.h>
-#include <sys/ipc.h>
+#include <sys/ipc.h> //SOURCE: https://www.geeksforgeeks.org/ipc-using-message-queues/
 #include <sys/msg.h>
 #include <unistd.h>
 #include <assert.h>

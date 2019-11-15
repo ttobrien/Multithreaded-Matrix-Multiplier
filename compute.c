@@ -5,6 +5,9 @@ void DotProduct(void*);
 int NumJobsSent = 0;
 int NumJobsRec = 0;
 int num_threads = 0;
+int workCount = 0;
+pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t workControl = PTHREAD_MUTEX_INITIALIZER;
 //Source: https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
 void ctrl_c_handler(int sig_num)
 {
@@ -309,10 +312,23 @@ int main(int argc, char *argv[])
 	comInfo.mqID = &msgid;
 	comInfo.nFlag = &n;
 
-	for(int i = 0; i < 2500; i++)
+	for (int i = 0; i < 100; i++)
+	{
 		tpool_add_work(tm, DotProduct, &comInfo);
+	}
 	
-	 tpool_wait(tm);
+	//http://pages.cs.wisc.edu/~remzi/OSTEP/threads-cv.pdf	
+
+	while(1)
+	{
+		pthread_mutex_lock(&workControl);
+		if(workCount == num_threads)
+			pthread_cond_wait(&empty, &workControl);
+		tpool_add_work(tm, DotProduct, &comInfo);
+		workCount++;
+		pthread_mutex_unlock(&workControl);
+	}
+	tpool_wait(tm);
 
 	/*pthread_t thread[numOfThreads];
 	pthread_attr_t attr;
@@ -357,7 +373,7 @@ void DotProduct(void* param)
 	//fflush(stdout);
 
 	pthread_mutex_lock(&lock4);
-	printf("tid: %p\n", pthread_self());
+	printf("tid: %p\n", (void *)pthread_self());
 	rc1 = msgrcv(msgid, &message, 104 * sizeof(int), 1, 0);
 	if(rc1 == -1)
 	{
@@ -399,6 +415,9 @@ void DotProduct(void* param)
 		printf("Sending job id %d type %ld size %ld (rc=%d)\n", id, sendBack.type, 4 * sizeof(int), rc2);
 		pthread_mutex_unlock(&lock3);
 	}
-
+	pthread_mutex_lock(&workControl);
+	workCount--;
+	pthread_cond_signal(&empty);
+	pthread_mutex_unlock(&workControl);
 	return;
 }
