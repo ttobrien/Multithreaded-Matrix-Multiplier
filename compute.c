@@ -1,4 +1,4 @@
-#include "header.h"
+#include "compute.h"
 
 int NumJobsSent = 0;
 int NumJobsRec = 0;
@@ -24,9 +24,9 @@ int main(int argc, char *argv[])
                 Goodbye();
 	}
 
-        msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
-        if(msgid == -1)
-                msgid = msgget(key, 0);
+  msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
+  if(msgid == -1)
+          msgid = msgget(key, 0);
 	if(msgid == -1)
 	{
 		fprintf(stderr, "ERROR: Message queue id not produced\n");
@@ -50,23 +50,41 @@ int main(int argc, char *argv[])
 	comInfo.mqID = &msgid;
 	comInfo.nFlag = &n;
 
-	for (int i = 0; i < 100; i++)
+	//NO HARDCODING VALS
+	/*for (int i = 0; i < 100; i++)
 	{
 		tpool_add_work(tm, DotProduct, &comInfo);
-	}
+	}*/
 
 	//http://pages.cs.wisc.edu/~remzi/OSTEP/threads-cv.pdf
-
+	int pthreadRC = 0;
 	while(1)
 	{
-		pthread_mutex_lock(&workControl);
+		pthreadRC = pthread_mutex_lock(&workControl);
+		if(pthreadRC == -1)
+	  {
+			  fprintf(stderr, "ERROR: workControl locking failed\n");
+				Goodbye();
+		}
 		if(workCount == num_threads)
-			pthread_cond_wait(&empty, &workControl);
+		{
+			pthreadRC = pthread_cond_wait(&empty, &workControl);
+			if(pthreadRC == -1)
+		  {
+				  fprintf(stderr, "ERROR: cond_wait failed\n");
+					Goodbye();
+			}
+		}
 		tpool_add_work(tm, DotProduct, &comInfo);
 		workCount++;
-		pthread_mutex_unlock(&workControl);
+		pthreadRC = pthread_mutex_unlock(&workControl);
+		if(pthreadRC == -1)
+	  {
+			  fprintf(stderr, "ERROR: workControl unlocking failed\n");
+				Goodbye();
+		}
 	}
-	tpool_wait(tm);
+	tpool_wait(tm); //do I actually need this?
 
 	return 0;
 }
@@ -75,17 +93,22 @@ void DotProduct(void* param)
 {
 	int id = 0, row = 0, col = 0, inner = 0, dp = 0;
 	int  n = 0, msgid = 0;
-	int rc1 = 0, rc2 = 0;
+	int rc1 = 0, rc2 = 0, pthreadRC = 0;
 	Entry sendBack;
 	Msg message;
 
 	ComArgs* comArgs = (ComArgs*) param;
-//	printf("msgid rec: %d\n", comArgs->mqID);
+
 	n = *(comArgs->nFlag);
 	msgid = *(comArgs->mqID);
 
-	pthread_mutex_lock(&lock4);
-	printf("tid: %p\n", (void *)pthread_self());
+	pthreadRC = pthread_mutex_lock(&lock4);
+	if(pthreadRC == -1)
+	{
+			fprintf(stderr, "ERROR: lock4 locking failed\n");
+			Goodbye();
+	}
+	//printf("tid: %p\n", (void *)pthread_self());
 	rc1 = msgrcv(msgid, &message, 104 * sizeof(int), 1, 0);
 	if(rc1 == -1)
 	{
@@ -94,12 +117,17 @@ void DotProduct(void* param)
 	}
 	NumJobsRec++;
 	printf("Recieving job id %d type %ld size %ld\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int));
-	pthread_mutex_unlock(&lock4);
+	pthreadRC = pthread_mutex_unlock(&lock4);
+	if(pthreadRC == -1)
+	{
+			fprintf(stderr, "ERROR: lock4 unlocking failed\n");
+			Goodbye();
+	}
 
 	id = message.jobid;
-        row = message.rowvec;
-        col = message.colvec;
-        inner = message.innerDim;
+  row = message.rowvec;
+  col = message.colvec;
+  inner = message.innerDim;
 	for(int i = 0; i < inner; i++)
 	{
 		dp = dp + message.data[i] * message.data[inner + i];
@@ -117,20 +145,47 @@ void DotProduct(void* param)
 	}
 	else
 	{
-		pthread_mutex_lock(&lock3);
+		pthreadRC = pthread_mutex_lock(&lock3);
+		if(pthreadRC == -1)
+		{
+				fprintf(stderr, "ERROR: lock3 locking failed\n");
+				Goodbye();
+		}
 		rc2 = msgsnd(msgid, &sendBack, 4 * sizeof(int), 0);
 		if(rc1 == -1)
-        	{
+    {
                 	printf("ERROR: Message not sent\n");
 		}
 		NumJobsSent++;
 		printf("Sending job id %d type %ld size %ld (rc=%d)\n", id, sendBack.type, 4 * sizeof(int), rc2);
-		pthread_mutex_unlock(&lock3);
+		pthreadRC = pthread_mutex_unlock(&lock3);
+		if(pthreadRC == -1)
+		{
+				fprintf(stderr, "ERROR: lock3 unlocking failed\n");
+				Goodbye();
+		}
 	}
-	pthread_mutex_lock(&workControl);
-	workCount--;
-	pthread_cond_signal(&empty);
-	pthread_mutex_unlock(&workControl);
+
+	pthreadRC = pthread_mutex_lock(&workControl);
+	if(pthreadRC == -1)
+	{
+			fprintf(stderr, "ERROR: workControl locking failed\n");
+			Goodbye();
+	}
+	workCount--; //Critical Section
+	pthreadRC = pthread_cond_signal(&empty);
+	if(pthreadRC == -1)
+	{
+			fprintf(stderr, "ERROR: cond_signal failed\n");
+			Goodbye();
+	}
+	pthreadRC = pthread_mutex_unlock(&workControl);
+	if(pthreadRC == -1)
+	{
+			fprintf(stderr, "ERROR: workControl unlocking failed\n");
+			Goodbye();
+	}
+
 	return;
 }
 
@@ -184,6 +239,7 @@ void checkArg3(char* arg3)
 	return;
 }
 
+//delete unnecesaary functions and add stderr protections
 static tpool_work_t *tpool_work_create(thread_func_t func, void *arg)
 {
     tpool_work_t *work;

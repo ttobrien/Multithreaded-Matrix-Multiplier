@@ -10,7 +10,12 @@ int main(int argc, char *argv[])
 {
 	signal(SIGINT, ctrl_c_handler);
 
-	assert(argc == 5);
+	 if( ! ((argc == 4) || (argc == 5)) )
+   {
+    			fprintf(stderr, "USAGE ERROR: ./package  <matrix 1 file> <matrix 2 file> <output matrix data file> <secs between thread creation>\nOR\t ./package  <matrix 1 file> <matrix 2 file> <output matrix data file>\n");
+    			Goodbye();
+    }
+
 
 	FILE* matrixFile1 = NULL;
 	FILE* matrixFile2 = NULL;
@@ -19,16 +24,28 @@ int main(int argc, char *argv[])
 	matrixFile2 = fopen(argv[2], "r");
 	outputFile = fopen(argv[3], "w");
 
-	assert(matrixFile1 != NULL);
-	assert(matrixFile2 != NULL);
+	if((matrixFile1 == NULL) || (matrixFile2 == NULL) || (outputFile == NULL))
+	{
+		  fprintf(stderr, "ERROR: File not opened properly");
+			Goodbye();
+	}
+
 
 	int m1RowsNum = 0, m1ColsNum = 0, m2RowsNum = 0, m2ColsNum = 0;
-	int secs = GetSecs(argv[4]);
+	int secs;
+  if(argc == 5)
+	{
+		secs = GetSecs(argv[4]);
+	}
+	else
+	{
+		secs = 0;
+	}
 
 	fscanf(matrixFile1, " %d", &m1RowsNum);
 	fscanf(matrixFile1, " %d\n", &m1ColsNum);
 	fscanf(matrixFile2, " %d", &m2RowsNum);
-        fscanf(matrixFile2, " %d\n", &m2ColsNum);
+  fscanf(matrixFile2, " %d\n", &m2ColsNum);
 
 	assert(m1ColsNum == m2RowsNum);
 	assert((m1RowsNum >= 1) && (m1RowsNum <= 50));
@@ -63,19 +80,30 @@ int main(int argc, char *argv[])
                 mOut[a] = (int*) malloc(m2ColsNum * sizeof(int));
 
 	int NumThreads = m1RowsNum * m2ColsNum; //number of entries that will exist in the output matrix
-	msgctl(491520, IPC_RMID, NULL);
+
 	int msgid;
 	key_t key = ftok("ttobrien", 11);
+	if(key < 0)
+	{
+		   fprintf(stderr, "ERROR: Key not made\n");
+			 Goodbye();
+	}
 
 	msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
 	if(msgid == -1)
 		msgid = msgget(key, 0);
+	if(msgid < 0)
+	{
+		   fprintf(stderr, "ERROR: Message queue id not made\n");
+			 Goodbye();
+	}
 
 	PreMsg* outgoing = (PreMsg*) malloc(NumThreads * sizeof(PreMsg));//stack over flow 10468128 how do you make an array of structs in C?
 
 	pthread_t threads[NumThreads];
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
+	int createRC = 0;
 	for(int i = 0; i < NumThreads; i++)
 	{
    		outgoing[i].jobidP = i;
@@ -85,7 +113,12 @@ int main(int argc, char *argv[])
 		  outgoing[i].m1 = matrix1;
 		  outgoing[i].m2 = matrix2;
 		  outgoing[i].m3 = mOut;
-		  pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
+		  createRC = pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
+			if(createRC == -1)
+		  {
+				  fprintf(stderr, "ERROR: pthread_create failed for thread %d\n", i);
+					Goodbye();
+			}
 		  sleep(secs);
 	}
 
@@ -96,7 +129,7 @@ int main(int argc, char *argv[])
 		rcJoin = pthread_join(threads[j], NULL);
 		if(rcJoin < 0)
 		{
-			printf("ERROR: Thread %d not joined correctly\n", j);
+			fprintf(stderr, "ERROR: Thread %d not joined correctly\n", j);
 			Goodbye();
 		}
 	}
@@ -118,12 +151,12 @@ int main(int argc, char *argv[])
 	fclose(outputFile);
 	//SHOULD FREE THIS AFTER ALL SENT BUT BEFORE ALL RECIEVED
 	free(outgoing);
-        for(int a = 0; a < m1RowsNum; a++)
-                free(matrix1[a]);
-        free(matrix1);
-        for(int a = 0; a < m2RowsNum; a++)
-                free(matrix2[a]);
-        free(matrix2);
+  for(int a = 0; a < m1RowsNum; a++)
+          free(matrix1[a]);
+  free(matrix1);
+  for(int a = 0; a < m2RowsNum; a++)
+          free(matrix2[a]);
+  free(matrix2);
 
 	return 0;
 }
@@ -149,24 +182,51 @@ void* ProducerSend(void* infoVoid)
 		message.data[a + message.innerDim] = info->m2[a][info->jobidP % *(info->m2C)];
        	}
 
+  int pthreadRC = 0;
+
 	//printf("msgid: %d\n", msgid);
-	pthread_mutex_lock(&lock1);
+	pthreadRC = pthread_mutex_lock(&lock1);
+	if(pthreadRC == -1)
+  {
+		  fprintf(stderr, "ERROR: lock1 locking failed\n");
+			Goodbye();
+	}
 	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
-      // if(rc == -1)
-      // printf("\nUH OH: %s\n\n", strerror(errno));
+  if(rc1 == -1)
+  {
+		  fprintf(stderr, "ERROR: msgsnd failed\n");
+			Goodbye();
+	}
 	NumJobsSent++;
 	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int), rc1);
-	pthread_mutex_unlock(&lock1);
-	//free(infoVoid);
-
+	pthreadRC = pthread_mutex_unlock(&lock1);
+	if(pthreadRC == -1)
+  {
+		  fprintf(stderr, "ERROR: lock1 unlocking failed\n");
+			Goodbye();
+	}
 
 	Entry entry;
-	pthread_mutex_lock(&lock2);
+	pthreadRC = pthread_mutex_lock(&lock2);
+	if(pthreadRC == -1)
+  {
+		  fprintf(stderr, "ERROR: lock2 locking failed\n");
+			Goodbye();
+	}
 	int rc2 = msgrcv(msgid, &entry, 4 * sizeof(int), 2, 0);
-        assert(rc2 >= 0);
+	if(rc2 == -1)
+  {
+		  fprintf(stderr, "ERROR: msgrcv failed\n");
+			Goodbye();
+	}
 	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int));
 	NumJobsRec++;
-	pthread_mutex_unlock(&lock2);
+	pthreadRC = pthread_mutex_unlock(&lock2);
+	if(pthreadRC == -1)
+  {
+		  fprintf(stderr, "ERROR: lock2 unlocking failed\n");
+			Goodbye();
+	}
 
 	info->m3[entry.rowvec][entry.colvec] = entry.dotProduct;
 
