@@ -64,10 +64,8 @@ typedef struct RE{
 	int dp;
 } ReturnEntry;
 
-typedef struct ComputeInfo
+typedef struct ComputeInfoForThread
 {
 	int* mqID;
 	int* nFlag;
 } ComArgs;
-
-
