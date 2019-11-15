@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
-
+#include <stdbool.h>
 pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t workControl = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsSent in compute.c
@@ -40,6 +40,8 @@ typedef struct ComputeInfoForThread{
 	int* mqID;
 	int* nFlag;
 } ComArgs;
+
+typedef void (*thread_func_t)(void *arg);
 
 typedef struct tpool_work {
     thread_func_t      func;

@@ -34,7 +34,12 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ERROR: Message queue id not produced\n");
 		Goodbye();
 	}
-
+	
+	struct msqid_ds ds;
+	msgctl(msgid, IPC_STAT, &ds);
+	printf("max num of bytes allowed on queue: %lu\n", ds.msg_qbytes); 
+	printf("current num of bytes in queue: %lu\n", ds.__msg_cbytes);
+	printf("current num of messages in queue: %lu\n", ds.msg_qnum);
 	if(argc == 3)
 	{
 		checkArg3(argv[2]);
@@ -68,15 +73,16 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "ERROR: workControl locking failed\n");
 			Goodbye();
 		}
-		if(workCount == num_threads)
+		while(workCount == num_threads)
 		{
 			pthreadRC = pthread_cond_wait(&empty, &workControl);
 			if(pthreadRC == -1)
-		  	{
+			{
 				fprintf(stderr, "ERROR: cond_wait failed\n");
 				Goodbye();
 			}
-		}
+		}	
+		
 		tpool_add_work(tm, DotProduct, &comInfo);
 		workCount++;
 		pthreadRC = pthread_mutex_unlock(&workControl);

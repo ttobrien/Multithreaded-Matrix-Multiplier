@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 		outgoing[i].m1 = matrix1;
 		outgoing[i].m2 = matrix2;
 		outgoing[i].m3 = mOut;
-		createRC = pthread_create(&threads[i], &attr, ProducerSend, &outgoing[i]);
+		createRC = pthread_create(&threads[i], &attr, ProducerSendAndRecieve, &outgoing[i]);
 		if(createRC == -1)
 		{
 			fprintf(stderr, "ERROR: pthread_create failed for thread %d\n", i);
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-void* ProducerSend(void* infoVoid)
+void* ProducerSendAndRecieve(void* infoVoid)
 {
 	PreMsg* info = (PreMsg*)infoVoid;
 
@@ -269,3 +269,10 @@ void ctrl_c_handler(int sig_num)
         printf("Jobs sent %d Jobs Recieved %d\n", NumJobsSent, NumJobsRec);
         fflush(stdout);
 }
+
+void Goodbye()
+{
+        fprintf(stderr, "Program terminating\n");
+        exit(0);
+}
+
