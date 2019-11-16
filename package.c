@@ -209,6 +209,14 @@ void* ProducerSendAndRecieve(void* infoVoid)
 		fprintf(stderr, "ERROR: lock1 locking failed\n");
 		Goodbye();
 	}
+	struct msqid_ds ds;
+	msgctl(msgid, IPC_STAT, &ds);
+	int sizeOfMessage = (4 + 2 * message.innerDim) * sizeof(int);
+	while((sizeOfMessage + ds.__msg_cbytes) > ds.msg_qbytes)
+	{
+		printf("Blocking sending for thread %d\n", message.jobid);
+		pthread_cond_wait(&cond, &lock1);
+	}
 	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
 	if(rc1 == -1)
 	{
@@ -237,6 +245,7 @@ void* ProducerSendAndRecieve(void* infoVoid)
 		fprintf(stderr, "ERROR: msgrcv failed\n");
 		Goodbye();
 	}
+	pthread_cond_broadcast(&cond);
 	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int));
 	NumJobsRec++;
 	pthreadRC = pthread_mutex_unlock(&lock2);
