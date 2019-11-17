@@ -11,7 +11,7 @@ int workCount = 0; //Not needed!!
 
 int main(int argc, char *argv[])
 {
-	signal(SIGINT, CtrlC);
+	signal(SIGINT, CtrlC); //set interrupt
 
 	if( ! ((argc == 3) || (argc == 2)) )
 	{
@@ -194,10 +194,9 @@ void DotProduct(void* param)
 	return;
 }
 
-//Source: https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
 void CtrlC(int sig_num)
 {
-        signal(SIGINT, CtrlC);
+        signal(SIGINT, CtrlC); //reset interrupt
         printf("Jobs sent %d Jobs Recieved %d\n", numJobsSent, numJobsRec);
         fflush(stdout);
 }
@@ -349,34 +348,6 @@ tpool_t *tpool_create(size_t num)
     return tm;
 }
 
-void tpool_destroy(tpool_t *tm)
-{
-    tpool_work_t *work;
-    tpool_work_t *work2;
-
-    if (tm == NULL)
-        return;
-
-    pthread_mutex_lock(&(tm->work_mutex));
-    work = tm->work_first;
-    while (work != NULL) {
-        work2 = work->next;
-        tpool_work_destroy(work);
-        work = work2;
-    }
-    tm->stop = true;
-    pthread_cond_broadcast(&(tm->work_cond));
-    pthread_mutex_unlock(&(tm->work_mutex));
-
-    tpool_wait(tm);
-
-    pthread_mutex_destroy(&(tm->work_mutex));
-    pthread_cond_destroy(&(tm->work_cond));
-    pthread_cond_destroy(&(tm->working_cond));
-
-    free(tm);
-}
-
 bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg)
 {
     tpool_work_t *work;
@@ -401,20 +372,4 @@ bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg)
     pthread_mutex_unlock(&(tm->work_mutex));
 
     return true;
-}
-
-void tpool_wait(tpool_t *tm)
-{
-    if (tm == NULL)
-        return;
-
-    pthread_mutex_lock(&(tm->work_mutex));
-    while (1) {
-        if ((!tm->stop && tm->working_cnt != 0) || (tm->stop && tm->thread_cnt != 0)) {
-            pthread_cond_wait(&(tm->working_cond), &(tm->work_mutex));
-        } else {
-            break;
-        }
-    }
-    pthread_mutex_unlock(&(tm->work_mutex));
 }
