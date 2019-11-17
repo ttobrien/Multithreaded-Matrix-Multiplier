@@ -300,7 +300,7 @@ static void *tpool_worker(void *arg)
         if (tm->stop)
             break;
 
-        if (tm->work_first == NULL)
+        while (tm->work_first == NULL)
             pthread_cond_wait(&(tm->work_cond), &(tm->work_mutex));
 
         work = tpool_work_get(tm);
