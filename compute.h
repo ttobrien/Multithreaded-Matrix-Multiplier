@@ -156,4 +156,4 @@ tpool_t *tpool_create(size_t);
  */
 bool tpool_add_work(tpool_t*, thread_func_t, void*);
 
-#endif CS300Project_PACKAGE_H
+#endif //CS300Project_COMPUTE_H

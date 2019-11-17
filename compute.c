@@ -89,8 +89,7 @@ int main(int argc, char *argv[])
 			Goodbye();
 		}
 	}
-	tpool_wait(tm); //do I actually need this?
-
+	
 	return 0;
 }
 

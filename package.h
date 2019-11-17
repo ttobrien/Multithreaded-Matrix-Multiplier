@@ -85,4 +85,4 @@ int GetSecs(char*);
  */
 void Goodbye();
 
-#endif CS300Project_PACKAGE_H
+#endif //CS300Project_PACKAGE_H
