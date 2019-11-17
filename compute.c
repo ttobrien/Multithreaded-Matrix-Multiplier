@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "ERROR: workControl locking failed\n");
 			Goodbye();
 		}
-		while(workCount == num_threads)
+		while(tm->working_cnt == num_threads)
 		{
 			pthreadRC = pthread_cond_wait(&empty, &workControl);
 			if(pthreadRC == -1)
@@ -255,7 +255,7 @@ static tpool_work_t *tpool_work_create(thread_func_t func, void *arg)
     if (func == NULL)
         return NULL;
 
-    work       = malloc(sizeof(*work));
+    work       = (tpool_work_t*) malloc(sizeof(tpool_work_t));
     work->func = func;
     work->arg  = arg;
     work->next = NULL;
@@ -348,7 +348,7 @@ tpool_t *tpool_create(size_t num)
         pthread_create(&thread, NULL, tpool_worker, tm);
         pthread_detach(thread);
     }
-
+    tm->working_cnt = 0;
     return tm;
 }
 

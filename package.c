@@ -118,6 +118,9 @@ int main(int argc, char *argv[])
 	int createRC = 0;
 	for(int i = 0; i < NumThreads; i++)
 	{
+//		if(i == 2499)
+  //              	printf("2499\t\t\t\t\t\t\t2499\n\n\n\nOCCUPYING\n\n");
+    //    	fflush(stdout);
    		outgoing[i].jobidP = i;
 		outgoing[i].mqidP = &msgid;
 		outgoing[i].m2C = &m2ColsNum;
@@ -125,7 +128,13 @@ int main(int argc, char *argv[])
 		outgoing[i].m1 = matrix1;
 		outgoing[i].m2 = matrix2;
 		outgoing[i].m3 = mOut;
+//		if(i == 2499)
+  //              	printf("2499\t\t\t\t\t\t\t2499\n\n\n\nCREATING\n\n");
+    //    	fflush(stdout);
 		createRC = pthread_create(&threads[i], &attr, ProducerSendAndRecieve, &outgoing[i]);
+//		if(i == 2499)
+  //              	printf("2499\t\t\t\t\t\t\t2499\n\n\n\nCREATED\n\n");
+    //    	fflush(stdout);
 		if(createRC == -1)
 		{
 			fprintf(stderr, "ERROR: pthread_create failed for thread %d\n", i);
@@ -138,6 +147,8 @@ int main(int argc, char *argv[])
 
 	for(int j = 0; j < NumThreads; j++)
 	{
+//		printf("JOINING THREAD %d\n", j);
+		fflush(stdout);
 		rcJoin = pthread_join(threads[j], NULL);
 		if(rcJoin < 0)
 		{
@@ -193,7 +204,9 @@ void* ProducerSendAndRecieve(void* infoVoid)
 	message.innerDim = *(info->m1C);
 
 	//printf("type: %ld, jobid: %d, rowvec: %d, colvec: %d, innerdim: %d\n", message.type, message.jobid, message.rowvec, message.colvec, message.innerDim);
-
+//	if(message.jobid == 2499)
+//		printf("2499\t\t\t\t\t\t\t2499\n\n\n\nSTARTING\n\n");
+//	fflush(stdout);
 	for(int a = 0; a < message.innerDim; a++)
         {
         	message.data[a] = info->m1[info->jobidP / *(info->m2C)][a];
@@ -212,12 +225,19 @@ void* ProducerSendAndRecieve(void* infoVoid)
 	struct msqid_ds ds;
 	msgctl(msgid, IPC_STAT, &ds);
 	int sizeOfMessage = (4 + 2 * message.innerDim) * sizeof(int);
+//	if(message.jobid == 2499)
+  //              printf("2499\t\t\t\t\t\t\t2499\n\n\n\nCHECKING BYTES\n\n");
+//	fflush(stdout);
 	while((sizeOfMessage + ds.__msg_cbytes) > ds.msg_qbytes)
 	{
-		printf("Blocking sending for thread %d\n", message.jobid);
+//		printf("Blocking sending for thread %d\n", message.jobid);
 		pthread_cond_wait(&cond, &lock1);
+		msgctl(msgid, IPC_STAT, &ds);
 	}
-	int rc1 = msgsnd(msgid, &message, (4 + 2 * message.innerDim) * sizeof(int), 0);
+//	if(message.jobid == 2499)
+  //              printf("2499\t\t\t\t\t\t\t2499\n\n\n\nSENDING\n\n");
+//	fflush(stdout);
+	int rc1 = msgsnd(msgid, &message, sizeOfMessage, 0);
 	if(rc1 == -1)
 	{
 		fprintf(stderr, "ERROR: msgsnd failed\n");
