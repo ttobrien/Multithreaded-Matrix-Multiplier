@@ -1,3 +1,7 @@
+//
+// Created by Tommy O'Brien on November 14, 2019
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +50,6 @@ typedef struct PackageInfoForThread{
 } PreMsg;
 
 void* ProducerSendAndRecieve(void*);
-void ctrl_c_handler(int);
+void CtrlC(int);
 int GetSecs(char*);
 void Goodbye();

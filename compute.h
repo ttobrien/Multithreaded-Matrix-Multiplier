@@ -1,3 +1,7 @@
+//
+// Created by Tommy O'Brien on November 14, 2019
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,8 +18,9 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdbool.h>
+
 pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t workControl = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t workControl = PTHREAD_MUTEX_INITIALIZER; //used in controlling the number of workers 
 pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsSent in compute.c
 pthread_mutex_t lock4 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsRec in compute.c
 
@@ -61,7 +66,7 @@ typedef struct tpool {
 } tpool_t;
 
 void DotProduct(void*);
-void ctrl_c_handler(int);
+void CtrlC(int);
 void Goodbye();
 int GetNumOfThreads(char*);
 void checkArg3(char*);

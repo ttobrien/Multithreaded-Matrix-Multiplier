@@ -1,13 +1,17 @@
+//
+// Created by Tommy O'Brien on October 30, 2019
+//
+
 #include "compute.h"
 
-int NumJobsSent = 0;
-int NumJobsRec = 0;
-int num_threads = 0;
-int workCount = 0;
+int numJobsSent = 0;
+int numJobsRec = 0;
+int numThreads = 0;
+int workCount = 0; //Not needed!!
 
 int main(int argc, char *argv[])
 {
-	signal(SIGINT, ctrl_c_handler);
+	signal(SIGINT, CtrlC);
 
 	if( ! ((argc == 3) || (argc == 2)) )
 	{
@@ -34,10 +38,10 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ERROR: Message queue id not produced\n");
 		Goodbye();
 	}
-	
+
 	struct msqid_ds ds;
 	msgctl(msgid, IPC_STAT, &ds);
-	printf("max num of bytes allowed on queue: %lu\n", ds.msg_qbytes); 
+	printf("max num of bytes allowed on queue: %lu\n", ds.msg_qbytes);
 	printf("current num of bytes in queue: %lu\n", ds.__msg_cbytes);
 	printf("current num of messages in queue: %lu\n", ds.msg_qnum);
 	if(argc == 3)
@@ -50,43 +54,36 @@ int main(int argc, char *argv[])
 		n = 0;
 	}
 
-	num_threads = GetNumOfThreads(argv[1]);
+	numThreads = GetNumOfThreads(argv[1]);
 	tpool_t* tm;
-	tm = tpool_create(num_threads);
+	tm = tpool_create(numThreads);
 	ComArgs comInfo;// = (ComArgs*) malloc(sizeof(ComArgs));
 	comInfo.mqID = &msgid;
 	comInfo.nFlag = &n;
 
-	//NO HARDCODING VALS
-	/*for (int i = 0; i < 100; i++)
-	{
-		tpool_add_work(tm, DotProduct, &comInfo);
-	}*/
-
-	//http://pages.cs.wisc.edu/~remzi/OSTEP/threads-cv.pdf
-	int pthreadRC = 0;
+	int rcPthread = 0;
 	while(1)
 	{
-		pthreadRC = pthread_mutex_lock(&workControl);
-		if(pthreadRC == -1)
+		rcPthread = pthread_mutex_lock(&workControl);
+		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: workControl locking failed\n");
 			Goodbye();
 		}
-		while(tm->working_cnt == num_threads)
+		while(tm->working_cnt == numThreads)
 		{
-			pthreadRC = pthread_cond_wait(&empty, &workControl);
-			if(pthreadRC == -1)
+			rcPthread = pthread_cond_wait(&empty, &workControl);
+			if(rcPthread == -1)
 			{
 				fprintf(stderr, "ERROR: cond_wait failed\n");
 				Goodbye();
 			}
-		}	
-		
+		}
+
 		tpool_add_work(tm, DotProduct, &comInfo);
 		workCount++;
-		pthreadRC = pthread_mutex_unlock(&workControl);
-		if(pthreadRC == -1)
+		rcPthread = pthread_mutex_unlock(&workControl);
+		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: workControl unlocking failed\n");
 			Goodbye();
@@ -101,7 +98,7 @@ void DotProduct(void* param)
 {
 	int id = 0, row = 0, col = 0, inner = 0, dp = 0;
 	int  n = 0, msgid = 0;
-	int rc1 = 0, rc2 = 0, pthreadRC = 0;
+	int rc1 = 0, rc2 = 0, rcPthread = 0;
 	Entry sendBack;
 	Msg message;
 
@@ -110,8 +107,8 @@ void DotProduct(void* param)
 	n = *(comArgs->nFlag);
 	msgid = *(comArgs->mqID);
 
-	pthreadRC = pthread_mutex_lock(&lock4);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_lock(&lock4);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock4 locking failed\n");
 		Goodbye();
@@ -123,10 +120,10 @@ void DotProduct(void* param)
 		printf("ERROR: Message not recieved\n");
 		Goodbye();
 	}
-	NumJobsRec++;
+	numJobsRec++;
 	printf("Recieving job id %d type %ld size %ld\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int));
-	pthreadRC = pthread_mutex_unlock(&lock4);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_unlock(&lock4);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock4 unlocking failed\n");
 		Goodbye();
@@ -153,8 +150,8 @@ void DotProduct(void* param)
 	}
 	else
 	{
-		pthreadRC = pthread_mutex_lock(&lock3);
-		if(pthreadRC == -1)
+		rcPthread = pthread_mutex_lock(&lock3);
+		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: lock3 locking failed\n");
 			Goodbye();
@@ -164,31 +161,31 @@ void DotProduct(void* param)
     		{
                 	printf("ERROR: Message not sent\n");
 		}
-		NumJobsSent++;
+		numJobsSent++;
 		printf("Sending job id %d type %ld size %ld (rc=%d)\n", id, sendBack.type, 4 * sizeof(int), rc2);
-		pthreadRC = pthread_mutex_unlock(&lock3);
-		if(pthreadRC == -1)
+		rcPthread = pthread_mutex_unlock(&lock3);
+		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: lock3 unlocking failed\n");
 			Goodbye();
 		}
 	}
 
-	pthreadRC = pthread_mutex_lock(&workControl);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_lock(&workControl);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: workControl locking failed\n");
 		Goodbye();
 	}
 	workCount--; //Critical Section
-	pthreadRC = pthread_cond_signal(&empty);
-	if(pthreadRC == -1)
+	rcPthread = pthread_cond_signal(&empty);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: cond_signal failed\n");
 		Goodbye();
 	}
-	pthreadRC = pthread_mutex_unlock(&workControl);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_unlock(&workControl);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: workControl unlocking failed\n");
 		Goodbye();
@@ -198,10 +195,10 @@ void DotProduct(void* param)
 }
 
 //Source: https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
-void ctrl_c_handler(int sig_num)
+void CtrlC(int sig_num)
 {
-        signal(SIGINT, ctrl_c_handler);
-        printf("Jobs sent %d Jobs Recieved %d\n", NumJobsSent, NumJobsRec);
+        signal(SIGINT, CtrlC);
+        printf("Jobs sent %d Jobs Recieved %d\n", numJobsSent, numJobsRec);
         fflush(stdout);
 }
 

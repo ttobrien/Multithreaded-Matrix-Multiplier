@@ -1,14 +1,15 @@
-//Author: Tommy O'Brien
-//Start date: 10-26-2019
+//
+// Created by Tommy O'Brien on October 26, 2019
+//
 
 #include "package.h"
 
-int NumJobsSent = 0;
-int NumJobsRec = 0;
+int numJobsSent = 0;
+int numJobsRec = 0;
 
 int main(int argc, char *argv[])
 {
-	signal(SIGINT, ctrl_c_handler);
+	signal(SIGINT, CtrlC);
 
 	if( ! ((argc == 4) || (argc == 5)) )
    	{
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 	free(mOut);
 	printf("\n\n\n");
 	fclose(outputFile);
-		
+
 	free(outgoing);
   	for(int a = 0; a < m1RowsNum; a++)
         {
@@ -213,11 +214,11 @@ void* ProducerSendAndRecieve(void* infoVoid)
 		message.data[a + message.innerDim] = info->m2[a][info->jobidP % *(info->m2C)];
        	}
 
-  	int pthreadRC = 0;
+  	int rcPthread = 0;
 
 	//printf("msgid: %d\n", msgid);
-	pthreadRC = pthread_mutex_lock(&lock1);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_lock(&lock1);
+	if(rcPthread == -1)
   	{
 		fprintf(stderr, "ERROR: lock1 locking failed\n");
 		Goodbye();
@@ -243,18 +244,18 @@ void* ProducerSendAndRecieve(void* infoVoid)
 		fprintf(stderr, "ERROR: msgsnd failed\n");
 		Goodbye();
 	}
-	NumJobsSent++;
+	numJobsSent++;
 	printf("Sending job id %d type %ld size %ld (rc=%d)\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int), rc1);
-	pthreadRC = pthread_mutex_unlock(&lock1);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_unlock(&lock1);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock1 unlocking failed\n");
 		Goodbye();
 	}
 
 	Entry entry;
-	pthreadRC = pthread_mutex_lock(&lock2);
-	if(pthreadRC == -1)
+	rcPthread = pthread_mutex_lock(&lock2);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock2 locking failed\n");
 		Goodbye();
@@ -267,9 +268,9 @@ void* ProducerSendAndRecieve(void* infoVoid)
 	}
 	pthread_cond_broadcast(&cond);
 	printf("Recieving job id %d type %ld size %ld\n", entry.jobid, entry.type, 4 * sizeof(int));
-	NumJobsRec++;
-	pthreadRC = pthread_mutex_unlock(&lock2);
-	if(pthreadRC == -1)
+	numJobsRec++;
+	rcPthread = pthread_mutex_unlock(&lock2);
+	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock2 unlocking failed\n");
 		Goodbye();
@@ -292,10 +293,10 @@ int GetSecs(char* arg5)
 }
 
 //Source: https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
-void ctrl_c_handler(int sig_num)
+void CtrlC(int sig_num)
 {
-        signal(SIGINT, ctrl_c_handler);
-        printf("Jobs sent %d Jobs Recieved %d\n", NumJobsSent, NumJobsRec);
+        signal(SIGINT, CtrlC);
+        printf("Jobs sent %d Jobs Recieved %d\n", numJobsSent, numJobsRec);
         fflush(stdout);
 }
 
@@ -304,4 +305,3 @@ void Goodbye()
         fprintf(stderr, "Program terminating\n");
         exit(0);
 }
-
