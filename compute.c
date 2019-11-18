@@ -7,7 +7,7 @@
 int numJobsSent = 0;
 int numJobsRec = 0;
 int numThreads = 0;
-int workCount = 0; //Not needed!!
+int workCount = 0;
 
 int main(int argc, char *argv[])
 {
@@ -21,13 +21,16 @@ int main(int argc, char *argv[])
 
 	int msgid;
   	int n;
+	int rcPthread = 0;
+
+		
+        //Creating message queue or at least getting the id of an already created message queue
 	key_t key = ftok("ttobrien", 11);
 	if(key == -1)
 	{
 		fprintf(stderr, "ERROR: Key not produced\n");
                 Goodbye();
 	}
-
 	msgid = msgget(key, IPC_CREAT | IPC_EXCL | 0666);
 	if(msgid == -1)
 	{
@@ -39,11 +42,6 @@ int main(int argc, char *argv[])
 		Goodbye();
 	}
 
-	struct msqid_ds ds;
-	msgctl(msgid, IPC_STAT, &ds);
-	printf("max num of bytes allowed on queue: %lu\n", ds.msg_qbytes);
-	printf("current num of bytes in queue: %lu\n", ds.__msg_cbytes);
-	printf("current num of messages in queue: %lu\n", ds.msg_qnum);
 	if(argc == 3)
 	{
 		checkArg3(argv[2]);
@@ -57,20 +55,23 @@ int main(int argc, char *argv[])
 	numThreads = GetNumOfThreads(argv[1]);
 	tpool_t* tm;
 	tm = tpool_create(numThreads);
-	ComArgs comInfo;// = (ComArgs*) malloc(sizeof(ComArgs));
-	comInfo.mqID = &msgid;
+	ComArgs comInfo;
+	comInfo.mqID = &msgid; 
 	comInfo.nFlag = &n;
-
-	int rcPthread = 0;
+	
+	//compute will run indefinitely as a service until terminated or encountering a fatal error 
 	while(1)
 	{
+		//Synchronized with DotProduct
 		rcPthread = pthread_mutex_lock(&workControl);
 		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: workControl locking failed\n");
 			Goodbye();
 		}
-		while(tm->working_cnt == numThreads)
+		
+		//limiting amount of work to prevent an out of control population of the work queue
+		while(workCount == numThreads)
 		{
 			rcPthread = pthread_cond_wait(&empty, &workControl);
 			if(rcPthread == -1)
@@ -79,7 +80,6 @@ int main(int argc, char *argv[])
 				Goodbye();
 			}
 		}
-
 		tpool_add_work(tm, DotProduct, &comInfo);
 		workCount++;
 		rcPthread = pthread_mutex_unlock(&workControl);
@@ -102,17 +102,16 @@ void DotProduct(void* param)
 	Msg message;
 
 	ComArgs* comArgs = (ComArgs*) param;
-
 	n = *(comArgs->nFlag);
 	msgid = *(comArgs->mqID);
-
+	
+	//calls of msgrcv and incrementing of numJobsRec are synchronized
 	rcPthread = pthread_mutex_lock(&lock4);
 	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: lock4 locking failed\n");
 		Goodbye();
 	}
-	//printf("tid: %p\n", (void *)pthread_self());
 	rc1 = msgrcv(msgid, &message, 104 * sizeof(int), 1, 0);
 	if(rc1 == -1)
 	{
@@ -120,7 +119,8 @@ void DotProduct(void* param)
 		Goodbye();
 	}
 	numJobsRec++;
-	printf("Recieving job id %d type %ld size %ld\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int));
+	pthread_cond_broadcast(&cond);
+	printf("Receiving job id %d type %ld size %ld\n", message.jobid, message.type, (4 + 2 * message.innerDim) * sizeof(int));
 	rcPthread = pthread_mutex_unlock(&lock4);
 	if(rcPthread == -1)
 	{
@@ -143,20 +143,31 @@ void DotProduct(void* param)
 	sendBack.rowvec = row;
 	sendBack.colvec = col;
 
-	if (n == 1)
+	if (n == 1)//if switch is activated nothing is put back on the message queue but dot product information is shown
 	{
 		printf("Sum for cell %d,%d is %d\n", row, col, dp);
 	}
 	else
 	{
+	        //calls of msgsnd and incrementing of numJobsSent are syncronized
 		rcPthread = pthread_mutex_lock(&lock3);
 		if(rcPthread == -1)
 		{
 			fprintf(stderr, "ERROR: lock3 locking failed\n");
 			Goodbye();
 		}
+		struct msqid_ds ds;
+        	msgctl(msgid, IPC_STAT, &ds);
+        	int sizeOfMessage = 4 * sizeof(int);
+		//ensure the byte limit on the message queue will not be surpassed
+        	while((sizeOfMessage + ds.__msg_cbytes) > ds.msg_qbytes)
+        	{
+                	pthread_cond_wait(&cond, &lock3);
+                	msgctl(msgid, IPC_STAT, &ds);
+        	}
+
 		rc2 = msgsnd(msgid, &sendBack, 4 * sizeof(int), 0);
-		if(rc1 == -1)
+		if(rc2 == -1)
     		{
                 	printf("ERROR: Message not sent\n");
 		}
@@ -170,13 +181,14 @@ void DotProduct(void* param)
 		}
 	}
 
+	//Now that this work is done, another can start. Synchronized with main.
 	rcPthread = pthread_mutex_lock(&workControl);
 	if(rcPthread == -1)
 	{
 		fprintf(stderr, "ERROR: workControl locking failed\n");
 		Goodbye();
 	}
-	workCount--; //Critical Section
+	workCount--; 
 	rcPthread = pthread_cond_signal(&empty);
 	if(rcPthread == -1)
 	{
@@ -196,7 +208,7 @@ void DotProduct(void* param)
 void CtrlC(int sig_num)
 {
         signal(SIGINT, CtrlC); //reset interrupt
-        printf("Jobs sent %d Jobs Recieved %d\n", numJobsSent, numJobsRec);
+        printf("Jobs Sent %d Jobs Received %d\n", numJobsSent, numJobsRec);
         fflush(stdout);
 }
 
@@ -218,7 +230,7 @@ int GetNumOfThreads(char* arg2)
 	                Goodbye();
 		}
 	}
-        sscanf(arg2, "%d", &num);
+        sscanf(arg2, "%d", &num);//coverting c string to int if safe
 
         return num;
 }
@@ -242,7 +254,6 @@ void checkArg3(char* arg3)
 	return;
 }
 
-//delete unnecesaary functions and add stderr protections
 static tpool_work_t *tpool_work_create(thread_func_t func, void *arg)
 {
     tpool_work_t *work;

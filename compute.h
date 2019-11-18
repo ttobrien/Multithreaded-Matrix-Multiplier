@@ -2,8 +2,8 @@
 // Created by Tommy O'Brien on November 14, 2019
 //
 
-#ifndef CS300Project_PACKAGE_H
-#define CS300Project_PACKAGE_H
+#ifndef CS300Project_COMPUTE_H
+#define CS300Project_COMPUTE_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
+pthread_cond_t  cond  = PTHREAD_COND_INITIALIZER;  //for preventing putting too many bytes on the message queue
 pthread_cond_t empty = PTHREAD_COND_INITIALIZER; //used for controlling the number of workers
 pthread_mutex_t workControl = PTHREAD_MUTEX_INITIALIZER; //used in controlling the number of workers
 pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER; //for global variable int NumJobsSent in compute.c
@@ -72,6 +73,9 @@ typedef struct tpool {
  * This function receives a type 1 Msg from the message queue.
  * The dot product is computed for (rowvec, colvec) with the data array.
  * Then a type 2 Entry is placed onto the message queue.
+ *
+ * The use of struct msqid_ds with msgctl was adapted from the msgctl man page.
+ * http://man7.org/linux/man-pages/man2/msgctl.2.html
  *
  * The implementation of the message queue is adapted from
  * https://www.geeksforgeeks.org/ipc-using-message-queues/
