@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 	
 	//Creating message queue or at least getting the id of an already created message queue
 	int msgid;
-	key_t key = ftok("ttobrien", 11);
+	key_t key = ftok("ttobrien", 11);//need file "ttobrien" 
 	if(key < 0)
 	{
 		fprintf(stderr, "ERROR: Key not made\n");
